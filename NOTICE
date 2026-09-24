@@ -1,0 +1,13 @@
+Vault Agents
+
+Terminal host derived from Termy
+Copyright (c) ZyphrZero
+https://github.com/ZyphrZero/Termy
+Licensed under the GNU General Public License v3.0.
+
+Agent launch, permission flags, and local usage ideas derived from Orca
+Copyright (c) Lovecast Inc.
+https://github.com/stablyai/orca
+Licensed under the MIT License.
+
+This combined work is distributed under the GNU General Public License v3.0.

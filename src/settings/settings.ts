@@ -4,6 +4,8 @@
  */
 
 import type { VisibilityConfig } from '@/services/visibility';
+import type { AgentSettings } from '@/orca/types';
+import { DEFAULT_AGENT_SETTINGS } from '@/orca/defaults';
 
 /** Terminal programs that can be launched from the shell selector when installed */
 export type TerminalShellType = 'tmux';
@@ -121,6 +123,8 @@ export interface TerminalSettings {
 
   // Debug settings
   enableDebugLog: boolean;
+
+  agentSettings: AgentSettings;
 }
 
 /**
@@ -224,6 +228,24 @@ export const DEFAULT_PRESET_SCRIPTS: PresetScript[] = [
     showInStatusBar: true,
     autoOpenTerminal: true,
     runInNewTerminal: false,
+  },
+  {
+    id: 'grok',
+    name: 'Grok',
+    icon: 'bot',
+    actions: [
+      {
+        id: 'action-grok',
+        type: 'terminal-command',
+        value: 'grok',
+        enabled: true,
+        note: 'Launch Grok in the vault',
+      },
+    ],
+    terminalTitle: 'Grok',
+    showInStatusBar: true,
+    autoOpenTerminal: true,
+    runInNewTerminal: true,
   },
   {
     id: 'opencode',
@@ -360,4 +382,5 @@ export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   checkAiLauncherUpdates: true,
   lastSeenChangelogVersion: '',
   enableDebugLog: false,
+  agentSettings: DEFAULT_AGENT_SETTINGS,
 };

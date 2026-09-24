@@ -1,0 +1,40 @@
+export type AgentId = 'grok' | 'codex' | 'claude-code' | 'opencode';
+
+export type PermissionMode = 'yolo' | 'manual';
+
+export type AgentPermissionMode = 'inherit' | PermissionMode;
+
+export interface AgentEntrySettings {
+  enabled: boolean;
+  cliPath: string;
+  permissionMode: AgentPermissionMode;
+  extraArgs: string;
+  accountId: string;
+}
+
+export interface AgentSettings {
+  globalPermissionMode: PermissionMode;
+  yoloAcknowledged: boolean;
+  usageRefreshSec: number;
+  agents: Record<AgentId, AgentEntrySettings>;
+}
+
+export interface PendingTerminalSession {
+  shellType: string;
+  shellArgs?: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+  title?: string;
+}
+
+export interface UsageWindow {
+  name: string;
+  usedPct: number | null;
+  resetAt: string | null;
+}
+
+export interface UsageSnapshot {
+  provider: string;
+  status: string;
+  windows: UsageWindow[];
+}

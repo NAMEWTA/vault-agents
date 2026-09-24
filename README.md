@@ -1,3 +1,13 @@
+# Vault Agents
+
+Obsidian desktop plugin. Terminal host is [Termy](https://github.com/ZyphrZero/Termy) (GPL-3.0). Agent launch, YOLO/Manual, and local usage follow [Orca](https://github.com/stablyai/orca) (MIT). See [NOTICE](./NOTICE).
+
+Command palette: 新终端 PowerShell / 命令提示符 / Git Bash, plus Grok, Codex, Claude Code, and OpenCode. Agents spawn in a PTY with cwd set to the vault. No worktree. Default YOLO asks for confirmation once. Usage is read from local `~/.claude` and `~/.codex` files only.
+
+Install the folder as `.obsidian/plugins/vault-agents`. Obsidian desktop only. On first terminal open, download the Termy `termy-server` binary from the existing Termy release host. This plugin does not install AI CLIs for you.
+
+The original Termy README follows.
+
 <div align="center">
 
 # Termy

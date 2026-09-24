@@ -10,6 +10,7 @@ import { TerminalSettingsRenderer } from './renderers/terminalSettingsRenderer';
 import type { RendererContext } from './types';
 import { t } from '../i18n';
 import { createTermyLogoSvg } from '../ui/icons';
+import { renderAgentSettings } from '../orca/register';
 
 /**
  * Terminal settings tab class
@@ -48,6 +49,7 @@ export class TerminalSettingTab extends PluginSettingTab {
 
     // Render terminal settings
     this.terminalRenderer.render(context);
+    renderAgentSettings(this, this.plugin);
   }
 
   /**

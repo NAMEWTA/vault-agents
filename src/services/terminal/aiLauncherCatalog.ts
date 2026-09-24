@@ -145,6 +145,12 @@ export const AI_LAUNCHER_CATALOG: readonly AiLauncherCatalogEntry[] = [
     },
   },
   {
+    presetId: 'grok',
+    category: 'coding-agent',
+    detectCommand: 'grok',
+    installDocsUrl: 'https://github.com/xai-org/grok-build',
+  },
+  {
     presetId: 'opencode',
     category: 'coding-agent',
     detectCommand: 'opencode',

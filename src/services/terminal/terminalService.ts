@@ -22,6 +22,7 @@ import { debugLog, debugWarn, errorLog } from '@/utils/logger';
 import { t } from '@/i18n';
 import type { ServerManager } from '@/services/server/serverManager';
 import type { PtyClient } from '@/services/server/ptyClient';
+import type { PendingTerminalSession } from '@/orca/types';
 import { getSelectableShellTypes } from './shellProfiles';
 
 // Preload the TerminalInstance module to avoid dynamic import latency when creating the first terminal
@@ -58,6 +59,7 @@ export class TerminalService {
   
   // Terminal instance registry
   private terminals: Map<string, TerminalInstance> = new Map();
+  private pendingSessions: PendingTerminalSession[] = [];
   
   // Shutdown state flag
   private isShuttingDown = false;
@@ -183,6 +185,10 @@ export class TerminalService {
    * @returns The created terminal instance
    * @throws Error if terminal creation fails
    */
+  queueSession(session: PendingTerminalSession): void {
+    this.pendingSessions.push(session);
+  }
+
   async createTerminal(): Promise<TerminalInstance> {
     try {
       // Ensure the server is running
@@ -190,38 +196,47 @@ export class TerminalService {
       
       debugLog('[TerminalService] 创建终端');
 
-      // Use the preloaded module
       const { TerminalInstance } = await preloadTerminalInstance();
-      
-      // Get the working directory if auto-entering the vault directory is enabled
+      const pending = this.pendingSessions.shift();
+
       let cwd: string | undefined;
-      if (this.settings.autoEnterVaultDirectory) {
+      let shellType = '';
+      let shellArgs: string[] | undefined;
+      let env: Record<string, string> | undefined;
+      if (pending) {
+        shellType = pending.shellType;
+        shellArgs = pending.shellArgs;
+        cwd = pending.cwd ?? this.getVaultPath();
+        env = {
+          ...this.getTerminalEnvironment(),
+          ...pending.env,
+        };
+      } else if (this.settings.autoEnterVaultDirectory) {
         cwd = this.getVaultPath();
         if (cwd) {
           debugLog(`[TerminalService] 自动进入项目目录: ${cwd}`);
         }
       }
-      
-      // Handle a custom shell path
-      const currentShell = getCurrentPlatformShell(this.settings);
-      let shellType: string = currentShell;
-      if (currentShell === 'custom') {
-        const customPath = getCurrentPlatformCustomShellPath(this.settings);
-        if (customPath) {
-          shellType = `custom:${customPath}`;
+
+      if (!pending) {
+        const currentShell = getCurrentPlatformShell(this.settings);
+        shellType = currentShell;
+        if (currentShell === 'custom') {
+          const customPath = getCurrentPlatformCustomShellPath(this.settings);
+          if (customPath) {
+            shellType = `custom:${customPath}`;
+          }
         }
+        shellArgs = this.settings.shellArgs.length > 0 ? this.settings.shellArgs : undefined;
+        const terminalEnv = this.getTerminalEnvironment();
+        env = Object.keys(terminalEnv).length > 0 ? terminalEnv : undefined;
       }
-      
-      // Get shell startup arguments
-      const shellArgs = this.settings.shellArgs.length > 0 ? this.settings.shellArgs : undefined;
-      const terminalEnv = this.getTerminalEnvironment();
-      
-      // Create the terminal instance with the current settings
+
       const terminal = new TerminalInstance({
-        shellType: shellType,
-        shellArgs: shellArgs,
-        cwd: cwd,
-        env: Object.keys(terminalEnv).length > 0 ? terminalEnv : undefined,
+        shellType,
+        shellArgs,
+        cwd,
+        env,
         fontSize: this.settings.fontSize,
         fontFamily: this.settings.fontFamily,
         cursorStyle: this.settings.cursorStyle,
@@ -242,6 +257,9 @@ export class TerminalService {
       
       // Initialize the terminal through ServerManager
       await terminal.initializeWithServerManager(this.serverManager);
+      if (pending?.title) {
+        terminal.setTitle(pending.title);
+      }
       
       this.terminals.set(terminal.id, terminal);
       

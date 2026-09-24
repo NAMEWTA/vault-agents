@@ -1,8 +1,8 @@
 {
-  "name": "termy",
-  "version": "1.4.1",
+  "name": "vault-agents",
+  "version": "0.1.0",
   "type": "module",
-  "description": "Terminal emulator with split panes, reusable workflows, AI CLI context handoff, and zero setup. Powered by xterm.js and a bundled Rust PTY backend.",
+  "description": "Obsidian terminal based on Termy, with Orca-style local AI CLI launchers.",
   "main": "main.js",
   "packageManager": "pnpm@10.33.4",
   "scripts": {
@@ -33,7 +33,7 @@
     "xterm",
     "pty"
   ],
-  "author": "ZyphrZero",
+  "author": "NAMEWTA",
   "license": "GPL-3.0",
   "devDependencies": {
     "@eslint/js": "^9.39.4",

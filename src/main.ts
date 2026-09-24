@@ -48,6 +48,8 @@ import {
   readinessToBadge,
   type AiLauncherStatusSnapshot,
 } from './services/terminal/aiLauncherStatus';
+import { registerOrca } from './orca/register';
+import { normalizeAgentSettings } from './orca/defaults';
 import { LauncherInstallModal } from './ui/terminal/launcherInstallModal';
 import { resolveChangelogSection } from './utils/changelog';
 import embeddedChangelogContent from '../CHANGELOG.md';
@@ -225,6 +227,7 @@ export default class TerminalPlugin extends Plugin {
 
     // Register all commands
     this.registerCommands();
+    registerOrca(this);
 
     void this.initializeClaudeCodeIdeBridge().catch((error) => {
       errorLog('[TerminalPlugin] Failed to initialize Claude Code IDE bridge:', error);
@@ -420,6 +423,7 @@ export default class TerminalPlugin extends Plugin {
       serverConnection: this.normalizeServerConnectionSettings(loaded?.serverConnection),
       // Ensure the presetScripts config exists
       presetScripts: normalizedPresetScripts,
+      agentSettings: normalizeAgentSettings(loaded?.agentSettings),
     };
   }
 
@@ -574,6 +578,18 @@ export default class TerminalPlugin extends Plugin {
                        this.settings.visibility.showInStatusBar;
     
     this._statusBarItem.toggleClass('is-hidden', !shouldShow);
+  }
+
+  openFreshTerminal(): Promise<void> {
+    return this.activateTerminalView(this.getLeafForNewTerminal());
+  }
+
+  openSettings(): void {
+    const setting = (this.app as unknown as {
+      setting: { open: () => void; openTabById: (id: string) => void };
+    }).setting;
+    setting.open();
+    setting.openTabById(this.manifest.id);
   }
 
   /**
