@@ -1,7 +1,7 @@
 {
   "id": "vault-agents",
   "name": "Vault Agents",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "minAppVersion": "1.8.7",
   "description": "Termy terminal inside Obsidian, with Orca-style Grok, Codex, and Claude launchers. Default YOLO, local usage, no worktree.",
   "author": "NAMEWTA",
