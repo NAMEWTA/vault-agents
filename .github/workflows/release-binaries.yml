@@ -9,6 +9,9 @@ on:
         description: Release tag to attach binaries to
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: ${{ matrix.asset }}
