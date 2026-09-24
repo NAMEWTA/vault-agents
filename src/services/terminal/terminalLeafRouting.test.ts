@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { WorkspaceLeaf } from 'obsidian';
 
-import { getLeafForTerminalRoute } from './terminalLeafRouting.ts';
+import { avoidOccupiedTerminalLeaf, getLeafForTerminalRoute } from './terminalLeafRouting.ts';
 import type { TerminalSettings } from '../../settings/settings.ts';
 
 type FakeLeaf = WorkspaceLeaf & { name: string };
@@ -122,4 +122,20 @@ test('terminal routing still creates near non-excluded sidebar terminals', () =>
   });
 
   assert.equal(leaf, leftDestination);
+});
+
+test('occupied terminal leaf is replaced with a new tab', () => {
+  const root = { name: 'rootSplit' };
+  const occupied = createLeaf('existing-terminal', root);
+  const { workspace, getLeafCalls } = createWorkspace({
+    activeLeaf: occupied,
+    leaves: [occupied],
+  });
+
+  const leaf = avoidOccupiedTerminalLeaf(workspace, occupied, (candidate) => candidate === occupied);
+
+  assert.notEqual(leaf, occupied);
+  assert.deepEqual(getLeafCalls.map(({ mode, direction }) => ({ mode, direction })), [
+    { mode: 'tab', direction: undefined },
+  ]);
 });

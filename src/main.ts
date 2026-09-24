@@ -26,7 +26,7 @@ import {
   getAlwaysOnTopTerminalLabelKey,
   getAlwaysOnTopTerminalMenuState,
 } from './services/terminal/alwaysOnTopTerminalDisplay';
-import { getLeafForTerminalRoute } from './services/terminal/terminalLeafRouting';
+import { getLeafForTerminalRoute, avoidOccupiedTerminalLeaf } from './services/terminal/terminalLeafRouting';
 import {
   AI_LAUNCHER_CATALOG,
   getAiLauncherEntry,
@@ -48,7 +48,7 @@ import {
   readinessToBadge,
   type AiLauncherStatusSnapshot,
 } from './services/terminal/aiLauncherStatus';
-import { registerOrca } from './orca/register';
+import { isAgentId, launchRegisteredAgent, registerOrca } from './orca/register';
 import { normalizeAgentSettings } from './orca/defaults';
 import { LauncherInstallModal } from './ui/terminal/launcherInstallModal';
 import { resolveChangelogSection } from './utils/changelog';
@@ -1557,10 +1557,15 @@ export default class TerminalPlugin extends Plugin {
    * Get the leaf to use for a new terminal
    */
   private getLeafForNewTerminal(): WorkspaceLeaf {
-    return getLeafForTerminalRoute(this.app.workspace, this.settings, {
+    const routed = getLeafForTerminalRoute(this.app.workspace, this.settings, {
       terminalViewType: TERMINAL_VIEW_TYPE,
       excludedLeaf: this._alwaysOnTopTerminalLeaf,
     });
+    return avoidOccupiedTerminalLeaf(
+      this.app.workspace,
+      routed,
+      (candidate) => this.isTerminalView(candidate.view),
+    );
   }
 
   private getPresetScriptById(scriptId: string): PresetScript | null {
@@ -2686,6 +2691,10 @@ export default class TerminalPlugin extends Plugin {
     }
 
     const normalizedScript = this.normalizePresetScript(script);
+    if (isAgentId(normalizedScript.id)) {
+      await launchRegisteredAgent(normalizedScript.id);
+      return;
+    }
     const actions = normalizedScript.actions.filter((action) => action.enabled !== false);
     if (actions.length === 0) {
       new Notice(t('notices.presetScript.emptyCommand'));

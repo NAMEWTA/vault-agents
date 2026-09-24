@@ -22,6 +22,14 @@ export interface OrcaPluginHost {
 }
 
 let refreshUsageStatus: (() => void) | null = null;
+let launchBound: ((agentId: AgentId) => Promise<void>) | null = null;
+
+export function launchRegisteredAgent(agentId: AgentId): Promise<void> {
+  if (!launchBound) {
+    return Promise.reject(new Error('agent launcher is not ready'));
+  }
+  return launchBound(agentId);
+}
 
 async function openUsage(plugin: OrcaPluginHost): Promise<void> {
   const snapshots = await readUsageSnapshots(enabledUsageAgents(plugin));
@@ -34,6 +42,7 @@ function enabledUsageAgents(plugin: OrcaPluginHost): AgentId[] {
 }
 
 export function registerOrca(plugin: OrcaPluginHost): void {
+  launchBound = (agentId) => launchAgent(host(plugin), agentId);
   plugin.addCommand({
     id: 'new-terminal-powershell',
     name: '新终端: PowerShell',

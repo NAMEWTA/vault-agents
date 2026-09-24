@@ -209,7 +209,7 @@ export const DEFAULT_PRESET_SCRIPTS: PresetScript[] = [
     terminalTitle: 'Claude Code',
     showInStatusBar: true,
     autoOpenTerminal: true,
-    runInNewTerminal: false,
+    runInNewTerminal: true,
   },
   {
     id: 'codex',
@@ -227,7 +227,7 @@ export const DEFAULT_PRESET_SCRIPTS: PresetScript[] = [
     terminalTitle: 'Codex',
     showInStatusBar: true,
     autoOpenTerminal: true,
-    runInNewTerminal: false,
+    runInNewTerminal: true,
   },
   {
     id: 'grok',
@@ -263,7 +263,7 @@ export const DEFAULT_PRESET_SCRIPTS: PresetScript[] = [
     terminalTitle: 'OpenCode',
     showInStatusBar: true,
     autoOpenTerminal: true,
-    runInNewTerminal: false,
+    runInNewTerminal: true,
   },
 ];
 

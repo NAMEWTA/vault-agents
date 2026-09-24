@@ -73,6 +73,23 @@ function findLastNonExcludedLeaf(
   return null;
 }
 
+export function avoidOccupiedTerminalLeaf(
+  workspace: WorkspaceLike,
+  leaf: WorkspaceLeaf,
+  isOccupied: (candidate: WorkspaceLeaf) => boolean,
+): WorkspaceLeaf {
+  if (!isOccupied(leaf)) return leaf;
+
+  workspace.setActiveLeaf(leaf, { focus: false });
+  const tab = workspace.getLeaf('tab');
+  if (tab !== leaf && !isOccupied(tab)) return tab;
+
+  const split = workspace.getLeaf('split', 'horizontal');
+  if (split !== leaf && !isOccupied(split)) return split;
+
+  return workspace.getLeaf('split', 'vertical');
+}
+
 function ensureExcludedLeafDoesNotAnchorRoute(
   workspace: WorkspaceLike,
   excludedLeaf: WorkspaceLeaf | null,
