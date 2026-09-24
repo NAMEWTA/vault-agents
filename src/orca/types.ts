@@ -16,6 +16,7 @@ export interface AgentSettings {
   globalPermissionMode: PermissionMode;
   yoloAcknowledged: boolean;
   usageRefreshSec: number;
+  showUsageInStatusBar: boolean;
   agents: Record<AgentId, AgentEntrySettings>;
 }
 
@@ -35,6 +36,7 @@ export interface UsageWindow {
 
 export interface UsageSnapshot {
   provider: string;
+  account: string | null;
   status: string;
   windows: UsageWindow[];
 }

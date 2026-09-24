@@ -1,7 +1,7 @@
 import type { AgentId, AgentSettings, PermissionMode } from './types';
 
 const YOLO_FLAGS: Record<AgentId, readonly string[]> = {
-  grok: ['--yolo'],
+  grok: ['--permission-mode', 'bypassPermissions'],
   codex: ['--dangerously-bypass-approvals-and-sandbox'],
   'claude-code': ['--dangerously-skip-permissions'],
   opencode: [],

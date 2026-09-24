@@ -10,7 +10,7 @@
 
 import { debugLog, debugWarn, errorLog } from '@/utils/logger';
 import { t } from '@/i18n';
-import { resolveBinaryAssetUrls } from './binaryDownloadUrls';
+import { resolveBinaryAssetUrls, buildBinaryFilename } from './binaryDownloadUrls';
 import type { BinaryDownloadConfig } from './binaryDownloadUrls';
 
 /** Download progress callback */
@@ -54,7 +54,7 @@ export class BinaryDownloader {
   private installedVersionCache: string | null | undefined = undefined;
   
   /** Version cache filename */
-  private readonly versionCacheFileName = '.termy-server.version.json';
+  private readonly versionCacheFileName = '.vault-agents-server.version.json';
 
   /**
    * Node built-ins are resolved on demand inside the constructor via
@@ -189,8 +189,7 @@ export class BinaryDownloader {
   getBinaryPath(): string {
     const platform = process.platform;
     const arch = process.arch;
-    const ext = platform === 'win32' ? '.exe' : '';
-    const filename = `termy-server-${platform}-${arch}${ext}`;
+    const filename = buildBinaryFilename(platform, arch);
     
     return this.path.join(this.pluginDir, 'binaries', filename);
   }
@@ -523,7 +522,7 @@ export class BinaryDownloader {
         if (this.isFileBusyError(error)) {
           throw new Error(
             t('notices.binaryInUse') ||
-            '二进制文件被占用，请关闭 Obsidian 或结束 termy-server 进程后重试'
+            '二进制文件被占用，请关闭 Obsidian 或结束 vault-agents-server 进程后重试'
           );
         }
         throw error;

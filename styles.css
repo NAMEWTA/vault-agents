@@ -2254,3 +2254,45 @@
   visibility: visible !important;
   opacity: 1 !important;
 }
+
+.vault-agents-usage.is-clickable {
+  cursor: pointer;
+}
+
+.vault-agents-usage-card {
+  margin: 12px 0 18px;
+}
+
+.vault-agents-usage-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 52px auto;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.vault-agents-usage-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--background-modifier-border);
+  overflow: hidden;
+}
+
+.vault-agents-usage-fill {
+  height: 100%;
+  background: var(--interactive-accent);
+}
+
+.vault-agents-usage-fill.is-mid {
+  background: var(--color-orange, #d97706);
+}
+
+.vault-agents-usage-fill.is-high {
+  background: var(--color-red, #dc2626);
+}
+
+.vault-agents-usage-pct,
+.vault-agents-usage-reset {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}

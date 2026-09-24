@@ -44,9 +44,9 @@ const PLATFORMS = {
 
 // Termy server configuration
 const SERVER_CONFIG = {
-  name: 'termy-server',
-  displayName: 'Termy Server',
-  binaryPrefix: 'termy-server'
+  name: 'vault-agents-server',
+  displayName: 'Vault Agents Server',
+  binaryPrefix: 'vault-agents-server'
 };
 
 // Reference binary size (for hints only)
@@ -118,7 +118,7 @@ function showHelp() {
   console.log('  -h, --help           Show this help message');
   console.log('');
   console.log('Output:');
-  console.log('  Binary: binaries/termy-server-{platform}-{arch}[.exe]');
+  console.log('  Binary: binaries/vault-agents-server-{platform}-{arch}[.exe]');
   console.log('');
   console.log('Examples:');
   console.log('  node build-rust.js              # Build for current platform');

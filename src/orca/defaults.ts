@@ -16,6 +16,7 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   globalPermissionMode: 'yolo',
   yoloAcknowledged: false,
   usageRefreshSec: 45,
+  showUsageInStatusBar: true,
   agents: {
     grok: entry(),
     codex: entry(),
@@ -43,6 +44,7 @@ export function normalizeAgentSettings(value: Partial<AgentSettings> | null | un
     globalPermissionMode: mode,
     yoloAcknowledged: Boolean(value?.yoloAcknowledged),
     usageRefreshSec: Number.isFinite(refresh) && refresh >= 15 ? refresh : 45,
+    showUsageInStatusBar: value?.showUsageInStatusBar !== false,
     agents,
   };
 }

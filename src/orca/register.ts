@@ -1,10 +1,11 @@
-import { Notice, PluginSettingTab, Setting, type App } from 'obsidian';
+import { PluginSettingTab, Setting, type App } from 'obsidian';
 import type { TerminalSettings } from '@/settings/settings';
 import { normalizeAgentSettings } from './defaults';
 import { AGENT_CATALOG } from './catalog';
 import { launchAgent, launchShell, type LaunchHost } from './launcher';
 import { readUsageSnapshots } from './usage';
-import type { AgentId, AgentSettings } from './types';
+import { UsageModal } from './usageModal';
+import type { AgentId, AgentSettings, UsageSnapshot } from './types';
 import type { TerminalService } from '@/services/terminal/terminalService';
 
 export interface OrcaPluginHost {
@@ -18,6 +19,13 @@ export interface OrcaPluginHost {
   getTerminalService: () => Promise<TerminalService>;
   openFreshTerminal: () => Promise<void>;
   openSettings: () => void;
+}
+
+let refreshUsageStatus: (() => void) | null = null;
+
+async function openUsage(plugin: OrcaPluginHost): Promise<void> {
+  const snapshots = await readUsageSnapshots();
+  new UsageModal(plugin.app, snapshots).open();
 }
 
 export function registerOrca(plugin: OrcaPluginHost): void {
@@ -54,6 +62,14 @@ export function registerOrca(plugin: OrcaPluginHost): void {
   }
 
   plugin.addCommand({
+    id: 'show-usage',
+    name: '查看用量',
+    callback: () => {
+      void openUsage(plugin);
+    },
+  });
+
+  plugin.addCommand({
     id: 'open-agent-settings',
     name: '智能体设置…',
     callback: () => plugin.openSettings(),
@@ -61,19 +77,42 @@ export function registerOrca(plugin: OrcaPluginHost): void {
 
   const status = plugin.addStatusBarItem();
   status.addClass('vault-agents-usage');
-  const render = () => {
-    const snapshots = readUsageSnapshots();
-    const parts = snapshots.map((snapshot) => {
-      const tight = snapshot.windows[0];
-      if (!tight || tight.usedPct === null) return `${snapshot.provider}: ${snapshot.status}`;
-      return `${snapshot.provider} ${tight.usedPct}%`;
-    });
-    const mode = plugin.settings.agentSettings.globalPermissionMode === 'yolo' ? 'YOLO' : 'Manual';
-    status.setText(`${parts.join(' | ')} | ${mode}`);
+  status.addClass('is-clickable');
+  let latest: UsageSnapshot[] = [];
+  let inflight = false;
+  const render = async () => {
+    if (inflight) return;
+    inflight = true;
+    try {
+      latest = await readUsageSnapshots();
+      const show = plugin.settings.agentSettings.showUsageInStatusBar;
+      status.toggleClass('is-hidden', !show);
+      if (!show) {
+        status.setText('');
+        return;
+      }
+      const parts = latest.map((snapshot) => {
+        const tight = snapshot.windows[0];
+        if (!tight || tight.usedPct === null) return `${snapshot.provider} ${snapshot.status}`;
+        return `${snapshot.provider} ${tight.usedPct}%`;
+      });
+      status.setText(parts.join(' · '));
+    } finally {
+      inflight = false;
+    }
   };
-  render();
+  refreshUsageStatus = () => {
+    void render();
+  };
+  status.addEventListener('click', () => {
+    new UsageModal(plugin.app, latest).open();
+    void render();
+  });
+  void render();
   const refreshMs = Math.max(15, plugin.settings.agentSettings.usageRefreshSec) * 1000;
-  plugin.registerInterval(window.setInterval(render, refreshMs));
+  plugin.registerInterval(window.setInterval(() => {
+    void render();
+  }, refreshMs));
 }
 
 function host(plugin: OrcaPluginHost): LaunchHost {
@@ -101,7 +140,7 @@ export function renderAgentSettings(tab: PluginSettingTab, plugin: OrcaPluginHos
   const { containerEl } = tab;
   containerEl.createEl('h3', { text: '智能体' });
   containerEl.createEl('p', {
-    text: '默认 YOLO，直接在当前库启动本机 CLI。自定义参数非空时不再自动附加权限 flag。',
+    text: '默认 YOLO。Grok 是 --permission-mode bypassPermissions，Codex 是 --dangerously-bypass-approvals-and-sandbox，Claude 是 --dangerously-skip-permissions。额外参数非空时不再自动附加。',
   });
 
   new Setting(containerEl)
@@ -171,15 +210,24 @@ export function renderAgentSettings(tab: PluginSettingTab, plugin: OrcaPluginHos
   }
 
   new Setting(containerEl)
-    .setName('检查用量')
-    .setDesc('只读本机 ~/.claude 与 ~/.codex，不调用付费 API。')
-    .addButton((button) => {
-      button.setButtonText('刷新').onClick(() => {
-        const lines = readUsageSnapshots().map((snapshot) => {
-          const detail = snapshot.windows.map((window) => `${window.name} ${window.usedPct ?? '-'}%`).join(', ');
-          return `${snapshot.provider}: ${detail || snapshot.status}`;
+    .setName('状态栏显示用量')
+    .setDesc('关闭后，仍可以用命令「查看用量」打开和 Orca 一样的用量条。')
+    .addToggle((toggle) => {
+      toggle
+        .setValue(plugin.settings.agentSettings.showUsageInStatusBar)
+        .onChange(async (value) => {
+          plugin.settings.agentSettings.showUsageInStatusBar = value;
+          await plugin.saveSettings();
+          refreshUsageStatus?.();
         });
-        new Notice(lines.join('\n'), 8000);
+    });
+
+  new Setting(containerEl)
+    .setName('检查用量')
+    .setDesc('读取本机 Claude、Codex、Grok CLI 的登录态。Grok 会用本地 auth.json 向 cli-chat-proxy.grok.com 查询额度。')
+    .addButton((button) => {
+      button.setButtonText('查看').onClick(() => {
+        void openUsage(plugin);
       });
     });
 }

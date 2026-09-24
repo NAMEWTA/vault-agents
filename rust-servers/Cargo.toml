@@ -1,12 +1,12 @@
 # Rust terminal server
 [package]
-name = "termy-server"
+name = "vault-agents-server"
 version = "1.0.0"
 edition = "2021"
-description = "Terminal server for Termy plugin"
+description = "PTY server for the Vault Agents Obsidian plugin"
 
 [[bin]]
-name = "termy-server"
+name = "vault-agents-server"
 path = "src/main.rs"
 
 [dependencies]
@@ -18,7 +18,7 @@ which = "6.0"
 tokio = { version = "1", features = ["rt", "net", "sync", "signal", "macros", "time"] }
 
 # WebSocket
-tokio-tungstenite = { version = "0.28", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
 futures-util = "0.3"
 
 # Serialization

@@ -28,6 +28,7 @@ import {
 } from './types';
 import { PtyClient } from './ptyClient';
 import { BinaryDownloader } from './binaryDownloader';
+import { buildBinaryFilename } from './binaryDownloadUrls';
 import type { BinaryDownloadConfig } from './binaryDownloadUrls';
 
 type BinaryUpdateResult = 'skipped-offline' | 'already-ready' | 'downloaded' | 'updated';
@@ -402,8 +403,7 @@ export class ServerManager {
   private getBinaryPath(): string {
     const platform = process.platform;
     const arch = process.arch;
-    const ext = platform === 'win32' ? '.exe' : '';
-    const filename = `termy-server-${platform}-${arch}${ext}`;
+    const filename = buildBinaryFilename(platform, arch);
     
     return this.path.join(this.pluginDir, 'binaries', filename);
   }
