@@ -201,6 +201,12 @@ export class TerminalInstance {
   private pendingInput: string[] = [];
   private inputFlushTimer: number | null = null;
   private readonly inputBatchIntervalMs = 4;
+  private outputQueue: string[] = [];
+  private outputQueueChars = 0;
+  private outputTruncated = false;
+  private outputPaused = false;
+  private outputDraining = false;
+  private readonly maxPendingOutputChars = 2_000_000;
 
   // Context menu callbacks for actions like split/new terminal that need external handling
   private contextMenuCallbacks: {
@@ -346,7 +352,7 @@ export class TerminalInstance {
     // WebGL renderer cannot show a CSS background image behind the canvas
     // reliably, so the background image is silently ignored in WebGL mode and
     // the configured backgroundColor stays in effect.
-    const preferredRenderer = this.options.preferredRenderer || 'canvas';
+    const preferredRenderer = this.options.preferredRenderer || 'webgl';
     return preferredRenderer !== 'webgl';
   }
 
@@ -397,7 +403,7 @@ export class TerminalInstance {
       return;
     }
 
-    const resolvedRenderer = this.options.preferredRenderer || 'canvas';
+    const resolvedRenderer = this.options.preferredRenderer || 'webgl';
     if (this.rendererType === resolvedRenderer) {
       return;
     }
@@ -439,7 +445,7 @@ export class TerminalInstance {
       return;
     }
 
-    void this.loadRenderer(this.options.preferredRenderer || 'canvas')
+    void this.loadRenderer(this.options.preferredRenderer || 'webgl')
       .then(() => {
         this.updateTheme();
         this.syncBackgroundLayerStyles();
@@ -571,19 +577,19 @@ export class TerminalInstance {
       );
       this.extractCwdFromOutput(filteredText);
       this.updateWin32InputMode(filteredText);
-      this.xterm.write(filteredText);
+      this.enqueueTerminalOutput(filteredText);
     });
     
     // Handle exit events (session-level)
     this.exitUnsubscribe = this.ptyClient.onSessionExit(this.sessionId, (code: number) => {
       debugLog('[Terminal] PTY 会话退出, code:', code);
-      this.xterm.write(`\r\n\x1b[33m[会话已结束, 退出码: ${code}]\x1b[0m\r\n`);
+      this.enqueueTerminalOutput(`\r\n\x1b[33m[会话已结束, 退出码: ${code}]\x1b[0m\r\n`);
     });
     
     // Handle error events (session-level)
     this.errorUnsubscribe = this.ptyClient.onSessionError(this.sessionId, (code: string, message: string) => {
       errorLog('[Terminal] PTY 错误:', code, message);
-      this.xterm.write(`\r\n\x1b[1;31m[错误] ${message}\x1b[0m\r\n`);
+      this.enqueueTerminalOutput(`\r\n\x1b[1;31m[错误] ${message}\x1b[0m\r\n`);
     });
 
     // Handle shell integration events
@@ -784,6 +790,52 @@ export class TerminalInstance {
     });
   }
 
+  setOutputPaused(paused: boolean): void {
+    if (this.outputPaused === paused) return;
+    this.outputPaused = paused;
+    if (!paused) this.drainOutputQueue();
+  }
+
+  private enqueueTerminalOutput(text: string): void {
+    if (!text || this.isDestroyed) return;
+    this.outputQueue.push(text);
+    this.outputQueueChars += text.length;
+    while (this.outputQueueChars > this.maxPendingOutputChars && this.outputQueue.length > 1) {
+      const dropped = this.outputQueue.shift() ?? '';
+      this.outputQueueChars -= dropped.length;
+      this.outputTruncated = true;
+    }
+    this.drainOutputQueue();
+  }
+
+  private drainOutputQueue(): void {
+    if (this.outputDraining || this.outputPaused || this.isDestroyed) return;
+    if (this.outputQueue.length === 0 && !this.outputTruncated) return;
+    this.outputDraining = true;
+    let chunk = '';
+    if (this.outputTruncated) {
+      chunk += '\r\n\x1b[33m[输出已截断]\x1b[0m\r\n';
+      this.outputTruncated = false;
+    }
+    chunk += this.outputQueue.join('');
+    this.outputQueue = [];
+    this.outputQueueChars = 0;
+    try {
+      this.xterm.write(chunk, () => {
+        try {
+          this.outputDraining = false;
+          if (!this.isDestroyed) this.drainOutputQueue();
+        } catch (error) {
+          this.outputDraining = false;
+          errorLog('[Terminal] write callback failed:', error);
+        }
+      });
+    } catch (error) {
+      this.outputDraining = false;
+      errorLog('[Terminal] write failed:', error);
+    }
+  }
+
   private queueInput(data: string): void {
     if (this.isDestroyed) return;
     this.pendingInput.push(data);
@@ -918,6 +970,9 @@ export class TerminalInstance {
   destroy(): void {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
+    this.outputPaused = true;
+    this.outputQueue = [];
+    this.outputQueueChars = 0;
 
     this.clearPendingInput();
     this.promptMarkers = [];
@@ -982,7 +1037,7 @@ export class TerminalInstance {
     // Set up the context menu and keyboard shortcuts
     this.setupDomEventHandlers(container);
 
-    const preferredRenderer = this.options.preferredRenderer || 'canvas';
+    const preferredRenderer = this.options.preferredRenderer || 'webgl';
 
     // Load the renderer asynchronously
     window.requestAnimationFrame(() => {
@@ -2097,7 +2152,7 @@ export class TerminalInstance {
   getSearchAddon(): SearchAddon { return this.searchAddon; }
 
   getCurrentRenderer(): 'canvas' | 'webgl' {
-    return this.rendererType ?? this.options.preferredRenderer ?? 'canvas';
+    return this.rendererType ?? this.options.preferredRenderer ?? 'webgl';
   }
 
   /**
@@ -2253,7 +2308,7 @@ export class TerminalInstance {
 
   updateOptions(options: Partial<TerminalOptions>): void {
     const previousScrollback = this.options.scrollback;
-    const previousRenderer = this.options.preferredRenderer || 'canvas';
+    const previousRenderer = this.options.preferredRenderer || 'webgl';
     const previousTransparentBackground = this.shouldUseTransparentTerminalBackground();
     this.options = { ...this.options, ...options };
     if (!this.isInitialized) {
@@ -2277,7 +2332,7 @@ export class TerminalInstance {
       this.xterm.options.cursorBlink = options.cursorBlink;
     }
     this.updateTheme();
-    const nextRenderer = this.options.preferredRenderer || 'canvas';
+    const nextRenderer = this.options.preferredRenderer || 'webgl';
     if (nextTransparentBackground !== previousTransparentBackground) {
       this.reopenTerminalElement();
     } else if (nextRenderer !== previousRenderer) {

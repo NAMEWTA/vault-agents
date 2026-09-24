@@ -40,5 +40,6 @@ export interface UsageSnapshot {
   provider: string;
   account: string | null;
   status: string;
+  failed: boolean;
   windows: UsageWindow[];
 }

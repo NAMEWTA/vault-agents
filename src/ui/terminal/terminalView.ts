@@ -21,7 +21,7 @@ import {
   collectPreferredDroppedTextPayload,
   resolveDroppedTextInput,
 } from '../../services/terminal/dropTextPayload';
-import { formatClaudeCodePathReferences } from '../../services/terminal/claudeCodePathReferences';
+import { formatAbsoluteDropPaths } from '../../services/terminal/pathReference';
 import {
   collectTerminalReferenceCandidatePaths,
   fileUriToPlatformPath,
@@ -158,6 +158,7 @@ export class TerminalView extends ItemView {
         void this.initializeTerminal();
       }
     }, 0);
+    this.bindOutputPause();
     return Promise.resolve();
   }
 
@@ -346,6 +347,7 @@ export class TerminalView extends ItemView {
       this.updateAppearanceStyles();
       this.attachTerminalToContainer();
       this.setupResizeObserver();
+      this.syncOutputPause();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       errorLog('[TerminalView] Init failed:', errorMessage);
@@ -752,37 +754,24 @@ export class TerminalView extends ItemView {
     return this.resolveVaultReferenceToAbsolute(normalized, true);
   }
 
-  private quoteDroppedPaths(paths: string[]): string {
-    return paths.map((path) => `"${path.replace(/"/g, '\\"')}"`).join(' ');
+  private bindOutputPause(): void {
+    const doc = this.containerEl.ownerDocument;
+    const sync = () => this.syncOutputPause();
+    this.registerEvent(this.app.workspace.on('layout-change', sync));
+    this.registerDomEvent(doc, 'visibilitychange', sync);
+    this.registerInterval(window.setInterval(sync, 1000));
+    sync();
+  }
+
+  private syncOutputPause(): void {
+    const el = this.containerEl as HTMLElement & { isShown?: () => boolean };
+    const hidden = el.ownerDocument.visibilityState === 'hidden'
+      || (typeof el.isShown === 'function' ? !el.isShown() : el.offsetParent === null);
+    this.terminalInstance?.setOutputPaused(hidden);
   }
 
   private formatDroppedPaths(paths: string[]): string {
-    if (!this.shouldFormatDroppedPathsAsClaudeCodeReferences()) {
-      return this.quoteDroppedPaths(paths);
-    }
-
-    return formatClaudeCodePathReferences(paths, {
-      cwd: this.terminalInstance?.getCwd(),
-      isDirectory: (path) => this.isDroppedDirectoryPath(path),
-      pathExists: (path) => this.fs.existsSync(path),
-    });
-  }
-
-  private shouldFormatDroppedPathsAsClaudeCodeReferences(): boolean {
-    const terminal = this.terminalInstance;
-    if (!terminal) {
-      return false;
-    }
-
-    return terminal.isClaudeCodeSession();
-  }
-
-  private isDroppedDirectoryPath(path: string): boolean {
-    try {
-      return this.fs.statSync(path).isDirectory();
-    } catch {
-      return false;
-    }
+    return formatAbsoluteDropPaths(paths);
   }
 
   private isDropEventInsideContainer(event: DragEvent, container: HTMLElement): boolean {

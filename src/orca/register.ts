@@ -1,8 +1,10 @@
-import { PluginSettingTab, Setting, type App } from 'obsidian';
+import { Notice, PluginSettingTab, Setting, type App } from 'obsidian';
 import type { TerminalSettings } from '@/settings/settings';
 import { normalizeAgentSettings } from './defaults';
 import { AGENT_CATALOG } from './catalog';
+import { collectReferences } from './copyReference';
 import { launchAgent, launchShell, type LaunchHost } from './launcher';
+import { nextUsageDelayMs } from '@/services/terminal/pathReference';
 import { readUsageSnapshots, formatUsageAside } from './usage';
 import { UsageModal } from './usageModal';
 import type { AgentId, AgentSettings, UsageSnapshot } from './types';
@@ -18,6 +20,7 @@ export interface OrcaPluginHost {
   registerInterval: (id: number) => number;
   getTerminalService: () => Promise<TerminalService>;
   openFreshTerminal: () => Promise<void>;
+  insertIntoActiveTerminal: (text: string) => Promise<boolean>;
   openSettings: () => void;
 }
 
@@ -76,6 +79,36 @@ export function registerOrca(plugin: OrcaPluginHost): void {
   }
 
   plugin.addCommand({
+    id: 'copy-relative-reference',
+    name: '复制相对引用',
+    callback: () => {
+      copyReference(plugin, 'relative');
+    },
+  });
+
+  plugin.addCommand({
+    id: 'copy-absolute-reference',
+    name: '复制绝对引用',
+    callback: () => {
+      copyReference(plugin, 'absolute');
+    },
+  });
+
+  plugin.addCommand({
+    id: 'insert-absolute-reference',
+    name: '把绝对引用插入当前终端',
+    callback: () => {
+      const text = collectReferences(plugin.app, 'absolute');
+      if (!text) {
+        new Notice('没有可引用的稳定路径');
+        return;
+      }
+      const inline = text.split('\n').filter((line) => line.length > 0).join(' ');
+      void plugin.insertIntoActiveTerminal(`${inline} `);
+    },
+  });
+
+  plugin.addCommand({
     id: 'show-usage',
     name: '查看用量',
     callback: () => {
@@ -94,11 +127,14 @@ export function registerOrca(plugin: OrcaPluginHost): void {
   status.addClass('is-clickable');
   let latest: UsageSnapshot[] = [];
   let inflight = false;
+  let consecutiveFailures = 0;
+  let nextAt = 0;
   const render = async () => {
     if (inflight) return;
     inflight = true;
     try {
       latest = await readUsageSnapshots(enabledUsageAgents(plugin));
+      consecutiveFailures = latest.some((snapshot) => snapshot.failed) ? consecutiveFailures + 1 : 0;
       const enabled = enabledUsageAgents(plugin);
       const show = plugin.settings.agentSettings.showUsageInStatusBar && enabled.length > 0;
       status.toggleClass('is-hidden', !show);
@@ -111,6 +147,7 @@ export function registerOrca(plugin: OrcaPluginHost): void {
       }
     } finally {
       inflight = false;
+      nextAt = Date.now() + nextUsageDelayMs(plugin.settings.agentSettings.usageRefreshSec, consecutiveFailures);
     }
   };
   refreshUsageStatus = () => {
@@ -121,10 +158,23 @@ export function registerOrca(plugin: OrcaPluginHost): void {
     void render();
   });
   void render();
-  const refreshMs = Math.max(15, plugin.settings.agentSettings.usageRefreshSec) * 1000;
   plugin.registerInterval(window.setInterval(() => {
+    if (Date.now() < nextAt) return;
     void render();
-  }, refreshMs));
+  }, 15_000));
+}
+
+function copyReference(plugin: OrcaPluginHost, kind: 'relative' | 'absolute'): void {
+  const text = collectReferences(plugin.app, kind);
+  if (!text) {
+    new Notice('没有可引用的稳定路径');
+    return;
+  }
+  void navigator.clipboard.writeText(text).then(() => {
+    new Notice(kind === 'relative' ? '已复制相对引用' : '已复制绝对引用');
+  }).catch(() => {
+    new Notice('复制失败');
+  });
 }
 
 function host(plugin: OrcaPluginHost): LaunchHost {

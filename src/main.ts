@@ -425,6 +425,11 @@ export default class TerminalPlugin extends Plugin {
       presetScripts: normalizedPresetScripts,
       agentSettings: normalizeAgentSettings(loaded?.agentSettings),
     };
+    if (loaded?.preferredRendererMigratedToWebgl !== true) {
+      this.settings.preferredRenderer = 'webgl';
+      this.settings.preferredRendererMigratedToWebgl = true;
+      await this.saveData(this.settings);
+    }
   }
 
   /**
@@ -580,6 +585,18 @@ export default class TerminalPlugin extends Plugin {
 
   openFreshTerminal(): Promise<void> {
     return this.activateTerminalView(this.getLeafForNewTerminal());
+  }
+
+  async insertIntoActiveTerminal(text: string): Promise<boolean> {
+    const terminalView = this.getActiveTerminalView();
+    const terminal = terminalView?.getTerminalInstance();
+    if (!terminalView || !terminal) {
+      new Notice('没有打开的终端');
+      return false;
+    }
+    terminal.write(text);
+    this.focusTerminalView(terminalView, terminal);
+    return true;
   }
 
   openSettings(): void {

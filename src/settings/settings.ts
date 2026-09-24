@@ -90,9 +90,9 @@ export interface TerminalSettings {
   // Text opacity
   textOpacity?: number;            // Text opacity (0-1.0)
 
-  // Renderer type: Canvas (recommended), WebGL (high performance)
-  // Note: The DOM renderer is deprecated and is no longer provided due to issues such as cursor positioning
+  // Renderer type. WebGL is the default; canvas remains the fallback.
   preferredRenderer: 'canvas' | 'webgl';
+  preferredRendererMigratedToWebgl?: boolean;
 
   // Scrollback buffer size (in lines)
   scrollback: number;
@@ -361,7 +361,8 @@ export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   cursorStyle: 'block',
   cursorBlink: true,
   useObsidianTheme: true,
-  preferredRenderer: 'canvas',
+  preferredRenderer: 'webgl',
+  preferredRendererMigratedToWebgl: true,
   scrollback: 1000,
   backgroundImageOpacity: 0.5,
   backgroundImageSize: 'cover',

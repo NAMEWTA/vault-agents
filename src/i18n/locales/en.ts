@@ -33,7 +33,7 @@ export const en: TranslationKeys = {
     initFailed: 'Failed to initialize terminal: {{message}}',
     notInitialized: 'Terminal not initialized yet, please try again later',
     renameTerminal: 'Rename terminal',
-    dropHintPasteFilePath: 'Drag to paste text or file path',
+    dropHintPasteFilePath: 'Drop a file to insert its absolute path',
     search: {
       placeholder: 'Search terminal content...',
       previous: 'Previous',

@@ -33,7 +33,7 @@ export const zhCN: TranslationKeys = {
     initFailed: '初始化终端失败：{{message}}',
     notInitialized: '终端尚未初始化，请稍候再试',
     renameTerminal: '重命名终端',
-    dropHintPasteFilePath: '拖拽粘贴文本或文件路径',
+    dropHintPasteFilePath: '拖到这里插入文件的绝对路径',
     search: {
       placeholder: '搜索终端内容...',
       previous: '上一个',

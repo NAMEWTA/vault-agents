@@ -12,7 +12,7 @@ const USAGE_TITLES: Record<'grok' | 'codex' | 'claude-code', string> = {
   'claude-code': 'Claude Code',
 };
 
-type ProviderSnapshot = Omit<UsageSnapshot, 'agentId'>;
+type ProviderSnapshot = Omit<UsageSnapshot, 'agentId' | 'failed'>;
 
 export async function readUsageSnapshots(enabled: readonly AgentId[]): Promise<UsageSnapshot[]> {
   const jobs: Array<Promise<UsageSnapshot>> = [];
@@ -37,10 +37,10 @@ export function formatUsageAside(snapshot: UsageSnapshot): string {
 async function safeRead(agentId: keyof typeof USAGE_TITLES, read: () => Promise<ProviderSnapshot>): Promise<UsageSnapshot> {
   try {
     const snapshot = await read();
-    return { ...snapshot, agentId, provider: USAGE_TITLES[agentId] };
+    return { ...snapshot, agentId, provider: USAGE_TITLES[agentId], failed: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : '读取失败';
-    return { agentId, provider: USAGE_TITLES[agentId], account: null, status: message, windows: [] };
+    return { agentId, provider: USAGE_TITLES[agentId], account: null, status: message, failed: true, windows: [] };
   }
 }
 

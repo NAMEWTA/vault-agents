@@ -1605,7 +1605,7 @@ export class TerminalSettingsRenderer extends BaseSettingsRenderer {
     }
 
     if (!actualRenderer) {
-      actualRenderer = this.context.plugin.settings.preferredRenderer ?? 'canvas';
+      actualRenderer = this.context.plugin.settings.preferredRenderer ?? 'webgl';
     }
 
     const rendererLabel = actualRenderer === 'webgl'
