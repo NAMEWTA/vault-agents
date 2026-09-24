@@ -69,8 +69,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p binaries
-          BINARY_NAME="termy-server-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}"
-          cp "rust-servers/target/${{ matrix.target }}/release/termy-server${{ matrix.ext }}" "binaries/${BINARY_NAME}"
+          BINARY_NAME="vault-agents-server-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}"
+          cp "rust-servers/target/${{ matrix.target }}/release/vault-agents-server${{ matrix.ext }}" "binaries/${BINARY_NAME}"
           
           cd binaries
           if command -v sha256sum &> /dev/null; then
@@ -84,8 +84,8 @@ jobs:
         with:
           name: server-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
-            binaries/termy-server-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
-            binaries/termy-server-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}.sha256
+            binaries/vault-agents-server-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
+            binaries/vault-agents-server-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}.sha256
 
   release:
     name: Release
@@ -117,8 +117,8 @@ jobs:
 
       - name: Set permissions
         run: |
-          chmod +x binaries/termy-server-darwin-* || true
-          chmod +x binaries/termy-server-linux-* || true
+          chmod +x binaries/vault-agents-server-darwin-* || true
+          chmod +x binaries/vault-agents-server-linux-* || true
 
       - name: Install and build
         run: |
@@ -130,7 +130,8 @@ jobs:
           node scripts/release-notes.js \
             --version "${{ github.ref_name }}" \
             --repository "${{ github.repository }}" \
-            --output release-body.md
+            --output release-body.md \
+            || printf 'Vault Agents %s\n' "${{ github.ref_name }}" > release-body.md
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
@@ -141,49 +142,28 @@ jobs:
 
       - name: Prepare release assets
         run: |
-          # BRAT 需要的三个核心文件（直接上传，不打包）
-          # main.js, manifest.json, styles.css 已在根目录
-          
-          # 设置二进制文件执行权限
-          chmod +x binaries/termy-server-darwin-* || true
-          chmod +x binaries/termy-server-linux-* || true
-          
-          # 创建完整包（所有平台，供手动安装）
-          mkdir -p termy/binaries
-          cp main.js manifest.json styles.css termy/
-          cp binaries/termy-server-* termy/binaries/
-          chmod +x termy/binaries/termy-server-darwin-* || true
-          chmod +x termy/binaries/termy-server-linux-* || true
-          zip -r "termy-${{ github.ref_name }}.zip" termy
-
-      - name: Upload binaries to R2
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          node scripts/upload-r2-assets.js \
-            --bucket termy-binaries-apac \
-            --version "${{ github.ref_name }}" \
-            --config wrangler.jsonc
+          chmod +x binaries/vault-agents-server-darwin-* || true
+          chmod +x binaries/vault-agents-server-linux-* || true
+          rm -rf vault-agents
+          mkdir -p vault-agents
+          cp main.js manifest.json styles.css vault-agents/
+          zip -r "vault-agents-${{ github.ref_name }}.zip" vault-agents
 
       - name: Release
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            main.js
-            manifest.json
-            styles.css
-            termy-${{ github.ref_name }}.zip
-            binaries/termy-server-win32-x64.exe
-            binaries/termy-server-win32-x64.exe.sha256
-            binaries/termy-server-darwin-arm64
-            binaries/termy-server-darwin-arm64.sha256
-            binaries/termy-server-darwin-x64
-            binaries/termy-server-darwin-x64.sha256
-            binaries/termy-server-linux-x64
-            binaries/termy-server-linux-x64.sha256
-            binaries/termy-server-linux-arm64
-            binaries/termy-server-linux-arm64.sha256
+            vault-agents-${{ github.ref_name }}.zip
+            binaries/vault-agents-server-win32-x64.exe
+            binaries/vault-agents-server-win32-x64.exe.sha256
+            binaries/vault-agents-server-darwin-arm64
+            binaries/vault-agents-server-darwin-arm64.sha256
+            binaries/vault-agents-server-darwin-x64
+            binaries/vault-agents-server-darwin-x64.sha256
+            binaries/vault-agents-server-linux-x64
+            binaries/vault-agents-server-linux-x64.sha256
+            binaries/vault-agents-server-linux-arm64
+            binaries/vault-agents-server-linux-arm64.sha256
           body_path: release-body.md
           draft: false
           prerelease: false
