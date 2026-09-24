@@ -7,6 +7,7 @@ function entry(): AgentEntrySettings {
     permissionMode: 'inherit',
     extraArgs: '',
     accountId: '',
+    showUsage: true,
   };
 }
 
@@ -35,6 +36,7 @@ export function normalizeAgentSettings(value: Partial<AgentSettings> | null | un
       permissionMode: incoming?.permissionMode === 'yolo' || incoming?.permissionMode === 'manual'
         ? incoming.permissionMode
         : 'inherit',
+      showUsage: incoming?.showUsage !== false,
     };
   }
 

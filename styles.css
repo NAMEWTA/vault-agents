@@ -2259,6 +2259,21 @@
   cursor: pointer;
 }
 
+.vault-agents-usage-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-left: 12px;
+}
+
+.vault-agents-usage-agent {
+  font-weight: 600;
+}
+
+.vault-agents-usage-rest {
+  color: var(--text-muted);
+}
+
 .vault-agents-usage-card {
   margin: 12px 0 18px;
 }

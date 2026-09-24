@@ -10,6 +10,7 @@ export interface AgentEntrySettings {
   permissionMode: AgentPermissionMode;
   extraArgs: string;
   accountId: string;
+  showUsage: boolean;
 }
 
 export interface AgentSettings {
@@ -35,6 +36,7 @@ export interface UsageWindow {
 }
 
 export interface UsageSnapshot {
+  agentId: AgentId;
   provider: string;
   account: string | null;
   status: string;

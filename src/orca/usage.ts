@@ -2,29 +2,49 @@ import * as fs from 'node:fs';
 import * as https from 'node:https';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { UsageSnapshot, UsageWindow } from './types';
+import type { AgentId, UsageSnapshot, UsageWindow } from './types';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
-export async function readUsageSnapshots(): Promise<UsageSnapshot[]> {
-  const snapshots = await Promise.all([
-    safeRead('Claude', readClaudeUsage),
-    safeRead('Codex', readCodexUsage),
-    safeRead('Grok', readGrokUsage),
-  ]);
-  return snapshots;
+const USAGE_TITLES: Record<'grok' | 'codex' | 'claude-code', string> = {
+  grok: 'Grok',
+  codex: 'Codex',
+  'claude-code': 'Claude Code',
+};
+
+type ProviderSnapshot = Omit<UsageSnapshot, 'agentId'>;
+
+export async function readUsageSnapshots(enabled: readonly AgentId[]): Promise<UsageSnapshot[]> {
+  const jobs: Array<Promise<UsageSnapshot>> = [];
+  if (enabled.includes('claude-code')) jobs.push(safeRead('claude-code', readClaudeUsage));
+  if (enabled.includes('codex')) jobs.push(safeRead('codex', readCodexUsage));
+  if (enabled.includes('grok')) jobs.push(safeRead('grok', readGrokUsage));
+  return Promise.all(jobs);
 }
 
-async function safeRead(provider: string, read: () => Promise<UsageSnapshot>): Promise<UsageSnapshot> {
+export function formatUsageAside(snapshot: UsageSnapshot): string {
+  const weekly = snapshot.windows.find((window) => window.name === '每周');
+  const monthly = snapshot.windows.find((window) => window.name === '每月');
+  const quota = weekly ?? monthly;
+  if (!quota || quota.usedPct === null) return snapshot.status;
+  const remaining = Math.max(0, Math.min(100, Math.round(100 - quota.usedPct)));
+  const refresh = quota.resetAt
+    ? `${quota.name === '每月' ? '月刷新' : '周刷新'} ${quota.resetAt}`
+    : '周刷新未知';
+  return `剩余 ${remaining}% ${refresh}`;
+}
+
+async function safeRead(agentId: keyof typeof USAGE_TITLES, read: () => Promise<ProviderSnapshot>): Promise<UsageSnapshot> {
   try {
-    return await read();
+    const snapshot = await read();
+    return { ...snapshot, agentId, provider: USAGE_TITLES[agentId] };
   } catch (error) {
     const message = error instanceof Error ? error.message : '读取失败';
-    return { provider, account: null, status: message, windows: [] };
+    return { agentId, provider: USAGE_TITLES[agentId], account: null, status: message, windows: [] };
   }
 }
 
-async function readClaudeUsage(): Promise<UsageSnapshot> {
+async function readClaudeUsage(): Promise<ProviderSnapshot> {
   const credentialsPath = path.join(os.homedir(), '.claude', '.credentials.json');
   const credentials = readJson(credentialsPath);
   const oauth = asRecord(credentials?.claudeAiOauth);
@@ -50,7 +70,7 @@ async function readClaudeUsage(): Promise<UsageSnapshot> {
   };
 }
 
-async function readCodexUsage(): Promise<UsageSnapshot> {
+async function readCodexUsage(): Promise<ProviderSnapshot> {
   const home = process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
   const auth = readJson(path.join(home, 'auth.json'));
   const tokens = asRecord(auth?.tokens);
@@ -83,7 +103,7 @@ async function readCodexUsage(): Promise<UsageSnapshot> {
   };
 }
 
-async function readGrokUsage(): Promise<UsageSnapshot> {
+async function readGrokUsage(): Promise<ProviderSnapshot> {
   const session = readGrokSession();
   if (!session) {
     return { provider: 'Grok', account: null, status: '未登录，先运行 grok login', windows: [] };

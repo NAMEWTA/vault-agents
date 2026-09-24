@@ -3,7 +3,7 @@ import type { TerminalSettings } from '@/settings/settings';
 import { normalizeAgentSettings } from './defaults';
 import { AGENT_CATALOG } from './catalog';
 import { launchAgent, launchShell, type LaunchHost } from './launcher';
-import { readUsageSnapshots } from './usage';
+import { readUsageSnapshots, formatUsageAside } from './usage';
 import { UsageModal } from './usageModal';
 import type { AgentId, AgentSettings, UsageSnapshot } from './types';
 import type { TerminalService } from '@/services/terminal/terminalService';
@@ -24,8 +24,13 @@ export interface OrcaPluginHost {
 let refreshUsageStatus: (() => void) | null = null;
 
 async function openUsage(plugin: OrcaPluginHost): Promise<void> {
-  const snapshots = await readUsageSnapshots();
+  const snapshots = await readUsageSnapshots(enabledUsageAgents(plugin));
   new UsageModal(plugin.app, snapshots).open();
+}
+
+function enabledUsageAgents(plugin: OrcaPluginHost): AgentId[] {
+  const { agents } = plugin.settings.agentSettings;
+  return (['grok', 'codex', 'claude-code'] as AgentId[]).filter((id) => agents[id]?.showUsage !== false);
 }
 
 export function registerOrca(plugin: OrcaPluginHost): void {
@@ -84,19 +89,17 @@ export function registerOrca(plugin: OrcaPluginHost): void {
     if (inflight) return;
     inflight = true;
     try {
-      latest = await readUsageSnapshots();
-      const show = plugin.settings.agentSettings.showUsageInStatusBar;
+      latest = await readUsageSnapshots(enabledUsageAgents(plugin));
+      const enabled = enabledUsageAgents(plugin);
+      const show = plugin.settings.agentSettings.showUsageInStatusBar && enabled.length > 0;
       status.toggleClass('is-hidden', !show);
-      if (!show) {
-        status.setText('');
-        return;
+      status.replaceChildren();
+      if (!show) return;
+      for (const snapshot of latest) {
+        const item = status.createSpan({ cls: 'vault-agents-usage-item' });
+        item.createSpan({ cls: 'vault-agents-usage-agent', text: snapshot.provider });
+        item.createSpan({ cls: 'vault-agents-usage-rest', text: formatUsageAside(snapshot) });
       }
-      const parts = latest.map((snapshot) => {
-        const tight = snapshot.windows[0];
-        if (!tight || tight.usedPct === null) return `${snapshot.provider} ${snapshot.status}`;
-        return `${snapshot.provider} ${tight.usedPct}%`;
-      });
-      status.setText(parts.join(' · '));
     } finally {
       inflight = false;
     }
@@ -207,11 +210,26 @@ export function renderAgentSettings(tab: PluginSettingTab, plugin: OrcaPluginHos
             });
         });
     }
+
+    if (agent.id === 'grok' || agent.id === 'codex' || agent.id === 'claude-code') {
+      new Setting(containerEl)
+        .setName(`${agent.title} 用量`)
+        .setDesc('关闭后，状态栏和用量面板都不再显示这个智能体。')
+        .addToggle((toggle) => {
+          toggle
+            .setValue(entry.showUsage)
+            .onChange(async (value) => {
+              plugin.settings.agentSettings.agents[agent.id].showUsage = value;
+              await plugin.saveSettings();
+              refreshUsageStatus?.();
+            });
+        });
+    }
   }
 
   new Setting(containerEl)
     .setName('状态栏显示用量')
-    .setDesc('关闭后，仍可以用命令「查看用量」打开和 Orca 一样的用量条。')
+    .setDesc('总开关。下面每个智能体还可以单独关闭。状态栏在名字右侧显示剩余额度，以及周刷新时间。')
     .addToggle((toggle) => {
       toggle
         .setValue(plugin.settings.agentSettings.showUsageInStatusBar)

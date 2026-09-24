@@ -37,8 +37,10 @@ export class UsageModal extends Modal {
         fill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
         if (pct >= 80) fill.addClass('is-high');
         else if (pct >= 60) fill.addClass('is-mid');
-        row.createSpan({ cls: 'vault-agents-usage-pct', text: window.usedPct === null ? '-' : `${window.usedPct}%` });
-        row.createSpan({ cls: 'vault-agents-usage-reset', text: window.resetAt ? `重置 ${window.resetAt}` : '' });
+        const remaining = window.usedPct === null ? null : Math.max(0, Math.min(100, Math.round(100 - window.usedPct)));
+        row.createSpan({ cls: 'vault-agents-usage-pct', text: remaining === null ? '-' : `剩余 ${remaining}%` });
+        const refreshLabel = window.name === '每周' ? '周刷新' : window.name === '每月' ? '月刷新' : '刷新';
+        row.createSpan({ cls: 'vault-agents-usage-reset', text: window.resetAt ? `${refreshLabel} ${window.resetAt}` : '' });
       }
     }
   }
